@@ -36,13 +36,17 @@ The primary script `main_infer.py` orchestrates these processes.
 
 1.  **Prepare Input Data:**
     *   Place your input frames (e.g., `frame0.png`, `frame2.png`, and optionally `frame1.png` for evaluation) in a directory. The script currently expects them in `data/public/`. You can modify the paths in `main_infer.py` if needed.
-
-2.  **Run the main script:**
+2. **go to your branch**
+    ```bash
+    git pull
+    git checkout your_branch
+    ```
+3.  **Run the main script:**
     ```bash
     python main_infer.py
     ```
 
-3.  **Deactivate the virtual environment when done:**
+4.  **Deactivate the virtual environment when done:**
     ```bash
     deactivate
     ```
