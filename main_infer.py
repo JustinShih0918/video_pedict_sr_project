@@ -70,12 +70,12 @@ except ImportError as e_fusion:
 
 try:
     print("DEBUG: Attempting to import models.super_resolution")
-    import models.super_resolution
-    print(f"DEBUG: Successfully imported models.super_resolution. Path: {models.super_resolution.__file__}")
-    print(f"DEBUG: dir(models.super_resolution): {dir(models.super_resolution)}")
+    import models.upsampling.super_resolution
+    print(f"DEBUG: Successfully imported models.super_resolution. Path: {models.upsampling.super_resolution.__file__}")
+    print(f"DEBUG: dir(models.super_resolution): {dir(models.upsampling.super_resolution)}")
 
     print("DEBUG: Attempting to import upscale from models.super_resolution")
-    from models.super_resolution import upscale
+    from models.upsampling.super_resolution import upscale
     print("DEBUG: Successfully imported upscale from models.super_resolution")
 except ImportError as e_sr:
     print(f"DEBUG: ImportError for super_resolution module: {e_sr}")
