@@ -192,7 +192,7 @@ if frame0 is not None and flow_0to2 is not None:
     # ... (existing code for regularizing flow_0to2_for_prediction_regularized) ...
     
     print("DEBUG: Warping frame0 using flow_to_use_for_pred_f2 to predict frame2")
-    predicted_frame2 = warp_frame(frame0, flow_to_use_for_pred_f2)
+    predicted_frame2 = warp_frame(frame0, flow_0to2)
 
     if predicted_frame2 is None:
         print("ERROR: Prediction of Frame2 (warping frame0) failed.")

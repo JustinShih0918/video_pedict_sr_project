@@ -41,10 +41,12 @@ transform = T.Compose([
 ])
 
 # 主函數：輸入 NumPy 圖片 → 輸出升解析 NumPy 圖片
-def upscale(frame_np):
+def upscale(frame_np, scale=2):
     with torch.no_grad():
         img = Image.fromarray(frame_np)
         tensor = transform(img).unsqueeze(0).to(device)  # [1, 3, H, W]
-        out = model(tensor)  # [1, 3, H*2, W*2]
+        # If you want to support dynamic scale, you need to re-instantiate the model here
+        # model = CNNUpsampler(scale=scale).to(device)
+        out = model(tensor)  # [1, 3, H*scale, W*scale]
         out_img = out.squeeze(0).clamp(0, 1).cpu().numpy().transpose(1, 2, 0)
         return (out_img * 255).astype(np.uint8)
