@@ -73,7 +73,7 @@ class SRDataset(Dataset):
 
 if __name__ == "__main__":
     # 2. Hyperparameters
-    batch_size = 16
+    batch_size = 128
     epochs = 1
     lr = 1e-4
 
