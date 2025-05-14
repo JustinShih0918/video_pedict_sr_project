@@ -1,6 +1,5 @@
-numpy
-opencv-python
-scikit-image
-matplotlib
-torch
-torchvision
+numpy>=1.21
+opencv-python>=4.5
+scikit-image>=0.19
+matplotlib>=3.4
+lpips>=0.1.4

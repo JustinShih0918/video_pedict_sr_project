@@ -50,6 +50,21 @@ The primary script `main_infer.py` orchestrates these processes.
     ```bash
     deactivate
     ```
+## for Justin's mac
+1.  **Set up**
+```
+bash gpu_for_mac.sh
+```
+
+2.  **Run train**
+```
+bash train_for_mac.sh
+```
+3.  **To log out**
+```
+conda deactivate
+deactivate
+```
 
 ## Output
 

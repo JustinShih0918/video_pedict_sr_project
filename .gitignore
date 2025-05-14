@@ -2,3 +2,4 @@ output
 venv
 .DS_Store
 data/private
+checkpoints
