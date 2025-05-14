@@ -32,9 +32,7 @@ class CNNUpsampler(nn.Module):
 
 # 初始化模型
 model = CNNUpsampler(scale=2).to(device)
-model.load_state_dict(torch.load("checkpoints/upsampler.pth", map_location=device))
-model.eval()
-# 預設不訓練，直接載入隨機初始化（你可改為訓練後載入）
+# model.load_state_dict(torch.load("checkpoints/upsampler.pth", map_location=device))
 model.eval()
 
 # 預處理
