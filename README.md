@@ -66,6 +66,15 @@ conda deactivate
 deactivate
 ```
 
+4. **To not let the colab disconnect**
+```JavaScript
+function ClickConnect(){
+    console.log("Working");
+    document.querySelector("colab-toolbar-button").click();
+}
+setInterval(ClickConnect, 60000);
+```
+
 ## Output
 
 The script will generate the following files in the `output/` directory:
