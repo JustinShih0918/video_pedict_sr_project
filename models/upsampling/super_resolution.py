@@ -29,10 +29,45 @@ class CNNUpsampler(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+    
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(channels, channels, 3, padding=1),
+            nn.BatchNorm2d(channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, 3, padding=1),
+            nn.BatchNorm2d(channels)
+        )
+
+    def forward(self, x):
+        return x + self.block(x)  # Skip connection
+    
+class EnhancedUpsampler(nn.Module):
+    def __init__(self, scale=2):
+        super().__init__()
+        self.initial = nn.Conv2d(3, 64, 3, padding=1)
+        self.res_blocks = nn.Sequential(
+            ResidualBlock(64),
+            ResidualBlock(64),
+            ResidualBlock(64)
+        )
+        self.upsample = nn.Sequential(
+            nn.Conv2d(64, 64 * scale * scale, 3, padding=1),
+            nn.PixelShuffle(scale),
+            nn.Conv2d(64, 3, 3, padding=1)
+        )
+
+    def forward(self, x):
+        x = self.initial(x)
+        x = self.res_blocks(x)
+        x = self.upsample(x)
+        return x
 
 # 初始化模型
 model = CNNUpsampler(scale=2).to(device)
-# model.load_state_dict(torch.load("checkpoints/upsampler.pth", map_location=device))
+# model.load_state_dict(torch.load("checkpoints/upsampler_final.pth", map_location=device))
 model.eval()
 
 # 預處理
