@@ -205,13 +205,11 @@ else:
     print("DEBUG: Skipping next frame prediction as frame0 or flow_0to2 is None.")
 
 # (Optional) Compute PSNR/SSIM if ground truth frame1 is available
-# gt_frame1_path = 'data/public/frame1.png'
-# gt_frame1 = cv2.imread(gt_frame1_path)
-# if gt_frame1 is not None and fused_frame.shape == gt_frame1.shape:
-#     print("DEBUG: Computing PSNR/SSIM for the non-upscaled fused frame")
-#     psnr, ssim = compute_psnr_ssim(gt_frame1, fused_frame)
-#     print(f"Fused Frame vs GT - PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
-# else:
-#     print("DEBUG: Ground truth frame1 not available or shape mismatch for PSNR/SSIM of fused frame.")
+gt_frame1_path = 'output/groundTruth/frame1.png'
+frame_output_path = 'output/frame1_pred_regularized.png'
+print("DEBUG: Computing PSNR/SSIM for the non-upscaled fused frame")
+psnr, ssim = compute_psnr_ssim(gt_frame1_path, frame_output_path)
+print(f"Frame vs GT - PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
+
 
 print("DEBUG: main_infer.py finished.")
