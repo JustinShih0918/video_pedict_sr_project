@@ -6,6 +6,8 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import torchvision.transforms as T
 import glob
+import matplotlib.pyplot as plt
+
 
 # Add the project root to Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -14,7 +16,19 @@ if project_root not in sys.path:
 
 # Now we can import using the full module path
 from models.upsampling.super_resolution import CNNUpsampler
+from models.upsampling.super_resolution import EnhancedUpsampler
 from utils.device import get_device
+
+
+# 建立 logs 資料夾
+os.makedirs("logs", exist_ok=True)
+losses = []
+loss_log_path = "logs/loss_log.txt"
+loss_plot_path = "logs/loss_plot.png"
+
+# 清空/初始化 log 檔
+with open(loss_log_path, "w") as f:
+    f.write("Epoch,Loss\n")
 
 device = get_device()
 print(f"Using device: {device}")
@@ -73,7 +87,7 @@ class SRDataset(Dataset):
 
 if __name__ == "__main__":
     # 2. Hyperparameters
-    batch_size = 128
+    batch_size = 16
     epochs = 1
     lr = 1e-4
 
@@ -84,7 +98,7 @@ if __name__ == "__main__":
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     # 4. Model
-    model = CNNUpsampler(scale=2).to(device)
+    model = EnhancedUpsampler(scale=2).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.L1Loss()
 
@@ -118,6 +132,10 @@ if __name__ == "__main__":
         avg_loss = total_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{epochs} - Loss: {avg_loss:.4f}")
         
+        # 儲存 loss 到 log 檔
+        with open(loss_log_path, "a") as f:
+            f.write(f"{epoch+1},{avg_loss:.6f}\n")
+            
         # Save checkpoint every 10 epochs
         if (epoch + 1) % 10 == 0:
             checkpoint_path = f"checkpoints/upsampler_epoch{epoch+1}.pth"
