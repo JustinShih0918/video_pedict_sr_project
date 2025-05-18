@@ -87,8 +87,8 @@ class SRDataset(Dataset):
 
 if __name__ == "__main__":
     # 2. Hyperparameters
-    batch_size = 16
-    epochs = 1
+    batch_size = 32
+    epochs = 25
     lr = 1e-4
 
     # 3. Dataloader with new paths
