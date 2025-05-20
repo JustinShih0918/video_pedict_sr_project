@@ -1,3 +1,4 @@
 output
 venv
+.venv
 .DS_Store
