@@ -4,3 +4,4 @@ venv
 data/private
 checkpoints
 logs
+__pycache__
