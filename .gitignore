@@ -2,3 +2,6 @@ output
 venv
 .venv
 .DS_Store
+checkpoints
+./__pycache__
+/data/private
