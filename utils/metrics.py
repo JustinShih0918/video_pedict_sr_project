@@ -4,7 +4,7 @@ import cv2
 def compute_psnr_ssim(gt_path, pred_path):
     gt = cv2.imread(gt_path)
     pred = cv2.imread(pred_path)
-    print(f"DEBUG: gt shape: {None if gt is None else gt.shape}, pred shape: {None if pred is None else pred.shape}")
+    # print(f"DEBUG: gt shape: {None if gt is None else gt.shape}, pred shape: {None if pred is None else pred.shape}")
 
     psnr = peak_signal_noise_ratio(gt, pred, data_range=255)
     # Use channel_axis=2 for color images, and set win_size if needed

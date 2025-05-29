@@ -66,8 +66,9 @@ class EnhancedUpsampler(nn.Module):
         return x
 
 # 初始化模型
-model = CNNUpsampler(scale=2).to(device)
-# model.load_state_dict(torch.load("checkpoints/upsampler_final.pth", map_location=device))
+# model = CNNUpsampler(scale=2).to(device)
+model = EnhancedUpsampler(scale=2).to(device)
+model.load_state_dict(torch.load("savedModel/upsampler_advanced_epoch20.pth", map_location=device))
 model.eval()
 
 # 預處理

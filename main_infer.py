@@ -207,9 +207,8 @@ else:
 # (Optional) Compute PSNR/SSIM if ground truth frame1 is available
 gt_frame1_path = 'output/groundTruth/frame1.png'
 frame_output_path = 'output/frame1_pred_regularized.png'
-print("DEBUG: Computing PSNR/SSIM for the non-upscaled fused frame")
-psnr, ssim = compute_psnr_ssim(gt_frame1_path, frame_output_path)
-print(f"Frame vs GT - PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
-
+# print("DEBUG: Computing PSNR/SSIM for the non-upscaled fused frame")
+# psnr, ssim = compute_psnr_ssim(gt_frame1_path, frame_output_path)
+# print(f"Frame vs GT - PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
 
 print("DEBUG: main_infer.py finished.")
