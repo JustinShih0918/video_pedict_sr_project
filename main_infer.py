@@ -70,12 +70,12 @@ except ImportError as e_fusion:
 
 try:
     print("DEBUG: Attempting to import models.super_resolution")
-    import models.super_resolution
-    print(f"DEBUG: Successfully imported models.super_resolution. Path: {models.super_resolution.__file__}")
-    print(f"DEBUG: dir(models.super_resolution): {dir(models.super_resolution)}")
+    import models.upsampling.super_resolution
+    print(f"DEBUG: Successfully imported models.super_resolution. Path: {models.upsampling.super_resolution.__file__}")
+    print(f"DEBUG: dir(models.super_resolution): {dir(models.upsampling.super_resolution)}")
 
     print("DEBUG: Attempting to import upscale from models.super_resolution")
-    from models.super_resolution import upscale
+    from models.upsampling.super_resolution import upscale
     print("DEBUG: Successfully imported upscale from models.super_resolution")
 except ImportError as e_sr:
     print(f"DEBUG: ImportError for super_resolution module: {e_sr}")
@@ -192,7 +192,7 @@ if frame0 is not None and flow_0to2 is not None:
     # ... (existing code for regularizing flow_0to2_for_prediction_regularized) ...
     
     print("DEBUG: Warping frame0 using flow_to_use_for_pred_f2 to predict frame2")
-    predicted_frame2 = warp_frame(frame0, flow_to_use_for_pred_f2)
+    predicted_frame2 = warp_frame(frame0, flow_0to2)
 
     if predicted_frame2 is None:
         print("ERROR: Prediction of Frame2 (warping frame0) failed.")
@@ -205,13 +205,10 @@ else:
     print("DEBUG: Skipping next frame prediction as frame0 or flow_0to2 is None.")
 
 # (Optional) Compute PSNR/SSIM if ground truth frame1 is available
-# gt_frame1_path = 'data/public/frame1.png'
-# gt_frame1 = cv2.imread(gt_frame1_path)
-# if gt_frame1 is not None and fused_frame.shape == gt_frame1.shape:
-#     print("DEBUG: Computing PSNR/SSIM for the non-upscaled fused frame")
-#     psnr, ssim = compute_psnr_ssim(gt_frame1, fused_frame)
-#     print(f"Fused Frame vs GT - PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
-# else:
-#     print("DEBUG: Ground truth frame1 not available or shape mismatch for PSNR/SSIM of fused frame.")
+gt_frame1_path = 'output/groundTruth/frame1.png'
+frame_output_path = 'output/frame1_pred_regularized.png'
+# print("DEBUG: Computing PSNR/SSIM for the non-upscaled fused frame")
+# psnr, ssim = compute_psnr_ssim(gt_frame1_path, frame_output_path)
+# print(f"Frame vs GT - PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
 
 print("DEBUG: main_infer.py finished.")
