@@ -27,7 +27,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from skimage.metrics import structural_similarity as ssim_func
 from skimage.metrics import peak_signal_noise_ratio as psnr_func
-!pip install torch torchvision
 
 """# ✅ Step 2: Unzip the dataset"""
 
@@ -220,8 +219,6 @@ class ImprovedInterpNet(nn.Module):
 
         out = self.out_conv(x_dec1)
         return self.final_act(out)
-
-pip install pytorch-msssim
 
 print(len(dataloader))
 
