@@ -38,10 +38,10 @@ print(f"[Train] Using device: {device}")
 # data paths
 
 # traing
-TRAIN_ROOT = os.path.join("multi_media", "topic4_release", "train")
+TRAIN_ROOT = os.path.join("data", "topic4_release", "train")
 
 # optical flow chart
-FLOW_CACHE_DIR = os.path.join("multi_media", "topic4_release", "flow_cache")
+FLOW_CACHE_DIR = os.path.join("data", "topic4_release", "flow_cache")
 os.makedirs(FLOW_CACHE_DIR, exist_ok=True)
 
 # checkpoint & logs 資料夾
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     print(f"[Train] Training complete. Final model -> {final_ckpt}")
 
     # (G) Step 7: Training
-    TOPIC4_RELEASE_PATH = os.path.join("multi_media", "topic4_release")
+    TOPIC4_RELEASE_PATH = os.path.join("data", "topic4_release")
     PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
     PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
     PRIVATE_OUTPUT_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_output")

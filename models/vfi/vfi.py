@@ -307,37 +307,45 @@ def run_private_testset(
     private_output_dir: str
 ):
     """
-    處理 private_test_set：
-    - private_test_dir: “topic4_release/private_test_set” 資料夾路徑
-    - private_output_dir: “topic4_release/private_test_output” 路徑
-    針對每個子目錄 (e.g. “00081/”) 做：
-      1. 收集 im1,2,3,5,6,7 → 推論 → 儲存 im4.png
+    Updated to handle an additional level of subdirectories.
+    Each sequence folder (e.g. "00081") may have one or more subfolders (e.g. "0202")
+    containing the images.
     """
     os.makedirs(private_output_dir, exist_ok=True)
-    seqs = sorted([d for d in os.listdir(private_test_dir)
-                   if os.path.isdir(os.path.join(private_test_dir, d))])
+    # List primary sequence folders (e.g. "00081")
+    primary_seqs = sorted([d for d in os.listdir(private_test_dir)
+                           if os.path.isdir(os.path.join(private_test_dir, d))])
+    print(f"[Private Set] Found {len(primary_seqs)} primary sequences.")
 
-    print(f"[Private Set] Found {len(seqs)} sequences to process.")
-    for seq in seqs:
-        src_folder = os.path.join(private_test_dir, seq)
-        dst_folder = os.path.join(private_output_dir, seq)
-        os.makedirs(dst_folder, exist_ok=True)
+    for seq in primary_seqs:
+        primary_path = os.path.join(private_test_dir, seq)
+        # List subdirectories inside each primary sequence folder
+        subdirs = sorted([sd for sd in os.listdir(primary_path)
+                          if os.path.isdir(os.path.join(primary_path, sd))])
+        # If there are no subdirectories, assume the images are directly under primary_path.
+        if not subdirs:
+            subdirs = [""]
 
-        # 1) collect 6 張 frames
-        inputs = []
-        for i in [1, 2, 3, 5, 6, 7]:
-            p = os.path.join(src_folder, f"im{i}.png")
-            if not os.path.exists(p):
-                raise FileNotFoundError(f"[Private] Missing {p}")
-            inputs.append(p)
+        for sub in subdirs:
+            src_folder = os.path.join(primary_path, sub) if sub else primary_path
+            dst_folder = os.path.join(private_output_dir, seq, sub) if sub else os.path.join(private_output_dir, seq)
+            os.makedirs(dst_folder, exist_ok=True)
 
-        # 2) 推論
-        pred_tensor, _, _, _ = interpolate_and_evaluate_full6(inputs, None, model)
+            # 1) Collect 6 frames
+            inputs = []
+            for i in [1, 2, 3, 5, 6, 7]:
+                p = os.path.join(src_folder, f"im{i}.png")
+                if not os.path.exists(p):
+                    raise FileNotFoundError(f"[Private] Missing {p}")
+                inputs.append(p)
 
-        # 3) 存成 im4.png
-        out_path = os.path.join(dst_folder, "im4.png")
-        save_tensor_as_png(pred_tensor, out_path)
-        print(f"[Private] Seq={seq} → saved predicted im4 to {out_path}")
+            # 2) Inference
+            pred_tensor, _, _, _ = interpolate_and_evaluate_full6(inputs, None, model)
+
+            # 3) Save as im4.png
+            out_path = os.path.join(dst_folder, "im4.png")
+            save_tensor_as_png(pred_tensor, out_path)
+            print(f"[Private] Seq={seq}/{sub} → saved predicted im4 to {out_path}")
 
 
 def run_public_testset(
@@ -346,54 +354,63 @@ def run_public_testset(
     public_output_dir: str
 ):
     """
-    處理 public_test_set：
-    - public_test_dir: “topic4_release/public_test_set” 資料夾路徑
-    - public_output_dir: “topic4_release/public_test_output” 路徑
-    做法：每個子目錄 (e.g. “00071/”) 有 im1..im7，其中 im4 作為 GT
-      1. 收集 im1,2,3,5,6,7 => 推論 => 存檔 im4_pred.png
-      2. 計算 PSNR, SSIM, 印出 & 累計，最後輸出平均值
+    Process the public_test_set:
+    - public_test_dir: path to “data/topic4_release/public_test_set”
+    - public_output_dir: path to “data/topic4_release/public_test_output”
+    For each primary folder (e.g. “00081”), each subfolder (e.g. “0202”) should have im1..im7 where im4 is the GT.
+      1. Gather im1,2,3,5,6,7 → infer → save as im4.png
+      2. Compute PSNR, SSIM, print & accumulate metrics, then output averages.
     """
     os.makedirs(public_output_dir, exist_ok=True)
-    seqs = sorted([d for d in os.listdir(public_test_dir)
-                   if os.path.isdir(os.path.join(public_test_dir, d))])
-
-    print(f"[Public Set] Found {len(seqs)} sequences to process.")
+    
+    # List primary sequence folders (e.g. "00081")
+    primary_seqs = sorted([d for d in os.listdir(public_test_dir)
+                           if os.path.isdir(os.path.join(public_test_dir, d))])
+    print(f"[Public Set] Found {len(primary_seqs)} primary sequences to process.")
+    
     total_psnr = 0.0
     total_ssim = 0.0
     cnt = 0
-
-    for seq in seqs:
-        src_folder = os.path.join(public_test_dir, seq)
-        dst_folder = os.path.join(public_output_dir, seq)
-        os.makedirs(dst_folder, exist_ok=True)
-
-        # 1) collect inputs + GT
-        inputs = []
-        for i in [1, 2, 3, 5, 6, 7]:
-            p = os.path.join(src_folder, f"im{i}.png")
-            if not os.path.exists(p):
-                raise FileNotFoundError(f"[Public] Missing {p}")
-            inputs.append(p)
-
-        gt_path = os.path.join(src_folder, "im4.png")
-        if not os.path.exists(gt_path):
-            raise FileNotFoundError(f"[Public] Missing {gt_path}")
-
-        # 2) 推論 + evaluate
-        pred_tensor, psnr_val, ssim_val, residual = interpolate_and_evaluate_full6(
-            inputs, gt_path, model
-        )
-
-        total_psnr += psnr_val
-        total_ssim += ssim_val
-        cnt += 1
-
-        # 3) 存成 im4.png
-        out_path = os.path.join(dst_folder, "im4.png")
-        save_tensor_as_png(pred_tensor, out_path)
-        print(f"[Public] Seq={seq}: PSNR={psnr_val:.2f}, SSIM={ssim_val:.4f} → saved to {out_path}")
-
-    # 最後印出平均值
+    
+    for seq in primary_seqs:
+        primary_path = os.path.join(public_test_dir, seq)
+        # List subdirectories inside each primary sequence folder.
+        subdirs = sorted([sd for sd in os.listdir(primary_path)
+                          if os.path.isdir(os.path.join(primary_path, sd))])
+        # If no subdirectories, assume images are directly under primary_path.
+        if not subdirs:
+            subdirs = [""]
+    
+        for sub in subdirs:
+            src_folder = os.path.join(primary_path, sub) if sub else primary_path
+            dst_folder = os.path.join(public_output_dir, seq, sub) if sub else os.path.join(public_output_dir, seq)
+            os.makedirs(dst_folder, exist_ok=True)
+    
+            # 1) Collect inputs + GT
+            inputs = []
+            for i in [1, 2, 3, 5, 6, 7]:
+                p = os.path.join(src_folder, f"im{i}.png")
+                if not os.path.exists(p):
+                    raise FileNotFoundError(f"[Public] Missing {p}")
+                inputs.append(p)
+            gt_path = os.path.join(src_folder, "im4.png")
+            if not os.path.exists(gt_path):
+                raise FileNotFoundError(f"[Public] Missing {gt_path}")
+    
+            # 2) Inference + evaluation
+            pred_tensor, psnr_val, ssim_val, residual = interpolate_and_evaluate_full6(
+                inputs, gt_path, model
+            )
+    
+            total_psnr += psnr_val
+            total_ssim += ssim_val
+            cnt += 1
+    
+            # 3) Save as im4.png
+            out_path = os.path.join(dst_folder, "im4.png")
+            save_tensor_as_png(pred_tensor, out_path)
+            print(f"[Public] Seq={seq}/{sub} → PSNR={psnr_val:.2f}, SSIM={ssim_val:.4f} saved to {out_path}")
+    
     if cnt > 0:
         avg_psnr = total_psnr / cnt
         avg_ssim = total_ssim / cnt
@@ -408,8 +425,8 @@ if __name__ == "__main__":
 
 
     # 調整路徑
-    TOPIC4_RELEASE_PATH = os.path.join("multi_media", "topic4_release")
-    CHECKPOINT_PATH = os.path.join("checkpoints", "interp_final.pth")
+    TOPIC4_RELEASE_PATH = os.path.join("data", "topic4_release")
+    CHECKPOINT_PATH = os.path.join("savedModel", "interp_final.pth")
     PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
     PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
     PRIVATE_OUTPUT_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_output")
