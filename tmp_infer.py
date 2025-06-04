@@ -12,15 +12,15 @@ from utils.debug import set_flag, debug
 try:
     from models.upsampling.super_resolution import upscale
     from models.vfi.vfi import predict_frame
-    debug(f"[Main]: Imports successful in super_resolution module from {proj_root}")
+    print(f"[Main]: Imports successful in super_resolution module from {proj_root}")
 except ImportError as e:
-    debug(f"[Main]: ImportError: {e}")
+    print(f"[Main]: ImportError: {e}")
 
 input_dir = os.path.join(proj_root, "data/private/private_test_set/00081/0202") # modify this path as needed
 output_dir = os.path.join(proj_root, "output/infer_results") # modify this path as needed
 if not os.path.exists(output_dir):
     os.makedirs(output_dir, exist_ok=True)
-    debug(f"[Main]: Created output directory: {output_dir}")
+    print(f"[Main]: Created output directory: {output_dir}")
 
 def main():
     # run vfi on input sequence to predict frame: im4
