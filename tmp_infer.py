@@ -12,12 +12,12 @@ from utils.debug import set_flag, debug
 try:
     from models.upsampling.super_resolution import upscale
     from models.vfi.vfi import predict_frame
-    print(f"[Main]: Imports successful in super_resolution module from {proj_root}")
+    print(f"[Main]: Models imported successfully from {proj_root}")
 except ImportError as e:
     print(f"[Main]: ImportError: {e}")
 
-input_dir = os.path.join(proj_root, "data/private/private_test_set/00081/0202") # modify this path as needed
-output_dir = os.path.join(proj_root, "output/infer_results") # modify this path as needed
+input_dir = os.path.join(proj_root, "data\\private\\private_test_set\\00081\\0202") # modify this path as needed
+output_dir = os.path.join(proj_root, "output\\infer_results") # modify this path as needed
 if not os.path.exists(output_dir):
     os.makedirs(output_dir, exist_ok=True)
     print(f"[Main]: Created output directory: {output_dir}")
@@ -38,13 +38,13 @@ def main():
             input_image_path = os.path.join(output_dir, filename)
             input_image = cv2.imread(input_image_path)
             if input_image is None:
-                debug(f"\r[Main]: Failed to read image {input_image_path}")
+                debug(f"[Main]: Failed to read image {input_image_path}")
                 continue
             output_image = upscale(input_image)
             output_image_path = os.path.join(output_dir, filename)
             cv2.imwrite(output_image_path, output_image)
 
-    debug(f"\r[Main]: Super Resolution completed. Output saved to: {output_dir}")
+    debug(f"[Main]: Super Resolution completed. Output saved to: {output_dir}")
 
 if __name__ == "__main__":
     set_flag("-d" in sys.argv)
