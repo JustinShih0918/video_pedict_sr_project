@@ -1,7 +1,8 @@
 import cv2
 import numpy as np # If needed
-print(f"DEBUG: Starting execution of models/super_resolution.py ({__file__})")
-print("DEBUG: Imports successful in models/super_resolution.py")
+from utils.debug import debug
+debug(f"[SR]: Starting execution of models/super_resolution.py ({__file__})")
+debug("[SR]: Imports successful in models/super_resolution.py")
 
 # super_resolution.py
 
@@ -78,6 +79,7 @@ transform = T.Compose([
 
 # 主函數：輸入 NumPy 圖片 → 輸出升解析 NumPy 圖片
 def upscale(frame_np, scale=2):
+    debug(f"[SR]: Upscaling image with shape {frame_np.shape} and scale {scale}")
     with torch.no_grad():
         img = Image.fromarray(frame_np)
         tensor = transform(img).unsqueeze(0).to(device)  # [1, 3, H, W]

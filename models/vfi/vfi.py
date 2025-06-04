@@ -12,11 +12,21 @@ from torchvision import transforms
 from torchvision.transforms import functional as TF
 from skimage.metrics import structural_similarity as ssim_func
 from skimage.metrics import peak_signal_noise_ratio as psnr_func
+from utils.debug import debug # not nessary
 
 # DEVICE 設定
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# path settings
+
+TOPIC4_RELEASE_PATH = os.path.join("data", "private")
+MODEL_PATH = os.path.join("savedModel", "vfi_model.pth")
+PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
+PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
+OUTPUT_DIR = os.path.join("output", "vfi_results")
+PRIVATE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "private_test_output")
+PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
 
 # ── 2. OPTICAL FLOW 求解 ───────────────────────────────────────────────────────
 
@@ -152,7 +162,7 @@ def apply_edge_enhancement(
 # ── 5. 圖像讀取 & 前處理 ────────────────────────────────────────────────────
 
 # Model 在 [256,448] 的解析度上訓練與推論 → 再 ×2 upsamping
-image_size = (256, 448)  # (H, W)
+image_size = (128, 224)  # (H, W) # k modified: (256, 448) -> (128, 224)
 
 _transform_resize = transforms.Resize(image_size)
 _transform_to_tensor = transforms.ToTensor()
@@ -240,7 +250,8 @@ def interpolate_and_evaluate_full6(
         gt_tensor = load_and_preprocess_image(gt_path)  # [3,256,448]
         gt_tensor = F.interpolate(
             gt_tensor.unsqueeze(0),
-            scale_factor=2,
+            # scale_factor=2,
+            scale_factor=1,
             mode="bicubic",
             align_corners=False
         )[0].to(device)  # [3,512,896]
@@ -253,7 +264,8 @@ def interpolate_and_evaluate_full6(
         output = model(input_tensor)  # [1,3,256,448]
         upsampled = F.interpolate(
             output,
-            scale_factor=2,
+            # scale_factor=2,
+            scale_factor=1,
             mode="bicubic",
             align_corners=False
         )  # [1,3,512,896]
@@ -277,14 +289,14 @@ def interpolate_and_evaluate_full6(
 
 # ── 8. 載入模型權重函式 ─────────────────────────────────────────────────────
 
-def load_interpolation_model(checkpoint_path: str) -> ImprovedInterpNet:
+def load_interpolation_model(MODEL_PATH: str) -> ImprovedInterpNet:
     """
     讀取一個訓練好的 checkpoint → 回傳 model（已 load state_dict、置於 device）
     """
     net = ImprovedInterpNet().to(device)
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
-    ckpt = torch.load(checkpoint_path, map_location=device)
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Checkpoint not found: {MODEL_PATH}")
+    ckpt = torch.load(MODEL_PATH, map_location=device)
     net.load_state_dict(ckpt)
     net.eval()
     return net
@@ -418,29 +430,62 @@ def run_public_testset(
     else:
         print("[Public] No sequences found.")
 
+# 10. main function
+
+debug(f"[VFI] Loading model from: {MODEL_PATH}")
+model = load_interpolation_model(MODEL_PATH)
+
+def predict_frame(
+    input_dir: str,
+    output_dir: str
+):
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Collect all image paths in the input directory
+    im_paths = sorted(glob.glob(os.path.join(input_dir, "*.png")))
+
+    # first copy the input images to the output directory
+    for im_path in im_paths:
+        if not os.path.exists(im_path):
+            raise FileNotFoundError(f"Image not found: {im_path}")
+        im_name = os.path.basename(im_path)
+        dst_path = os.path.join(output_dir, im_name)
+        cv2.imwrite(dst_path, cv2.imread(im_path))
+    
+    if len(im_paths) < 6:
+        raise ValueError(f"[VFI] Not enough images found in {input_dir}. Expected at least 6 images.")
+    
+    # Prepare inputs (first 6 images)
+    inputs = im_paths[:6]
+    
+    # Inference
+    pred_tensor, _, _, _ = interpolate_and_evaluate_full6(inputs, None, model)
+    
+    # Save output
+    out_path = os.path.join(output_dir, "im4.png")
+    save_tensor_as_png(pred_tensor, out_path)
 
 # ── 10. If run this file stand‐alone，示範推論 private & public ─────────────────────
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+#     # 調整路徑
+#     TOPIC4_RELEASE_PATH = os.path.join("data", "private")
+#     MODEL_PATH = os.path.join("savedModel", "vfi_model.pth")
+#     PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
+#     PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
+#     OUTPUT_DIR = os.path.join("output", "vfi_results")
+#     PRIVATE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "private_test_output")
+#     PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
 
+#     print("Loading model from:", MODEL_PATH)
+#     model = load_interpolation_model(MODEL_PATH)
 
-    # 調整路徑
-    TOPIC4_RELEASE_PATH = os.path.join("data", "topic4_release")
-    CHECKPOINT_PATH = os.path.join("savedModel", "interp_final.pth")
-    PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
-    PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
-    PRIVATE_OUTPUT_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_output")
-    PUBLIC_OUTPUT_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_output")
+#     print("\n>>> Running PRIVATE test set inference ...")
+#     run_private_testset(model, PRIVATE_TEST_DIR, PRIVATE_OUTPUT_DIR)
 
-    print("Loading model from:", CHECKPOINT_PATH)
-    model = load_interpolation_model(CHECKPOINT_PATH)
+#     print("\n>>> Running PUBLIC test set inference ...")
+#     run_public_testset(model, PUBLIC_TEST_DIR, PUBLIC_OUTPUT_DIR)
 
-    print("\n>>> Running PRIVATE test set inference ...")
-    run_private_testset(model, PRIVATE_TEST_DIR, PRIVATE_OUTPUT_DIR)
-
-    print("\n>>> Running PUBLIC test set inference ...")
-    run_public_testset(model, PUBLIC_TEST_DIR, PUBLIC_OUTPUT_DIR)
-
-    print("\n>>> All inference on private & public sets finished!")
+#     print("\n>>> All inference on private & public sets finished!")
 
 
