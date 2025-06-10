@@ -17,11 +17,10 @@ from torchvision import transforms
 
 # ── 1. Import model & 推論函式 （剛剛在 interpolation.py 裡） ──────────────────
 
-from models.interpolation.interpolation import (
+from vfi import (
     ImprovedInterpNet,
     compute_flow,
     interpolate_and_evaluate_full6,
-    load_interpolation_model,
     run_private_testset,
     run_public_testset
 )
@@ -33,7 +32,7 @@ def get_device():
 
 device = get_device()
 print(f"[Train] Using device: {device}")
-
+print("torch.cuda.is_available():", torch.cuda.is_available())
 
 # data paths
 
@@ -79,46 +78,41 @@ image_size = (256, 448)
 
 class InterpolationDatasetWithFlowCache(Dataset):
 
-
     def __init__(self, cached_list: list[tuple[list[str], str, str]]):
         super().__init__()
-        self.cached = cached_list
+        self.cache = cached_list
         self.H, self.W = image_size
         self.transform = transforms.Compose([
             transforms.Resize((self.H, self.W)),
             transforms.ToTensor(),
         ])
-
     def __len__(self):
-        return len(self.cached)
+        return len(self.cache)
+    def __getitem__(self, idx):
+        inputs, gt_path, flow_paths = self.cache[idx]
+        # 1) 處理 6 幀影格（固定不變）
+        frames = [ self.transform(Image.open(p).convert('RGB')) for p in inputs ]
+        # 2) 處理 flows：現在 flow_paths 長度變 6 而非 5
+        flows = []
+        # 將原本迭代的部分替換成直接讀取
+        arr = np.load(flow_paths)  # flow_paths 為單一檔案路徑字串
+        fx = arr[..., 0] / (arr.shape[1] - 1)
+        fy = arr[..., 1] / (arr.shape[0] - 1)
+        flow = np.stack([fx, fy], -1)
+        flow_resized = cv2.resize(flow, (self.W, self.H))
+        flows = [torch.from_numpy(flow_resized).permute(2, 0, 1).float()]
+        # 3) 時間編碼 channels 不變
+        temp_vals = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        t_chs = [ torch.full((1, self.H, self.W), t, dtype=torch.float32) for t in temp_vals ]
 
-    def __getitem__(self, idx: int):
-        inputs_paths, gt_path, flow_path = self.cached[idx]
+        # 最後拼接：原本 frames (6×3=18) + flows (5組＝10通道) + time (6×1=6)
+        # 變成 frames (18) + flows (6組＝12通道) + time (6通道) = 總共 36 通道
+        x = torch.cat(frames + flows + t_chs, dim=0)
 
-        # (1) 載入 6 張 frame → [3,H,W]
-        frames_t = []
-        for p in inputs_paths:
-            img = Image.open(p).convert("RGB")
-            img_t = self.transform(img)  # [3,H,W]
-            frames_t.append(img_t)
-
-        # (2) 載入 optical flow .npy → normalize & resize → [2,H,W]
-        flow = np.load(flow_path)  # [H_org, W_org, 2]
-        fx = flow[..., 0] / (flow.shape[1] - 1)
-        fy = flow[..., 1] / (flow.shape[0] - 1)
-        flow_norm = np.stack([fx, fy], axis=-1)  # [H_org,W_org,2]
-        flow_resized = cv2.resize(flow_norm, (self.W, self.H), interpolation=cv2.INTER_LINEAR)
-        flow_tensor = torch.from_numpy(flow_resized).permute(2, 0, 1).float()  # [2,H,W]
-
-        # (3) 組成 input_tensor: cat(frames_t + [flow_tensor]) → [20,H,W]
-        input_tensor = torch.cat(frames_t + [flow_tensor], dim=0)
-
-        # (4) 載入 GT im4 → resize → [3,H,W]
-        gt_img = Image.open(gt_path).convert("RGB")
-        gt_resized = transforms.Resize((self.H, self.W))(gt_img)
-        gt_t = transforms.ToTensor()(gt_resized)  # [3,H,W]
-
-        return input_tensor, gt_t
+        # 4) 處理 Target
+        y = transforms.Resize((self.H, self.W))(Image.open(gt_path).convert('RGB'))
+        y = transforms.ToTensor()(y)
+        return x, y
 
 
 # Precompute & Cache Flow
@@ -154,7 +148,7 @@ if __name__ == "__main__":
 
     # 收集 High & Low resolution 的路徑
     # 如果想跑全部資料，把 limit=None；否則 limit=3000 (和原本示範一致)
-    limit = 3000
+    limit = None
 
     print("[Train] Collecting High_Resolution paths ...")
     high_paths = collect_paths_v2("High_Resolution", limit=limit)
@@ -186,33 +180,23 @@ if __name__ == "__main__":
     )
 
     # (D) Step 4: Instantiate Model & Optimizer & Loss
-    model = ImprovedInterpNet(in_ch=20).to(device)
+    model = ImprovedInterpNet(in_ch=26).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     base_loss_fn = nn.L1Loss(reduction="none")
 
-    epochs = 15
+    epochs = 30
 
     # 準備 loss log 檔案
     with open(LOSS_LOG_PATH, "w") as f:
         f.write("epoch,avg_loss\n")
 
-    def motion_weighted_loss(
-        preds: torch.Tensor,
-        targets: torch.Tensor,
-        flows: torch.Tensor,
-        base_loss: nn.Module
-    ) -> torch.Tensor:
-        """
-        preds, targets: [B,3,H,W]
-        flows: [B,2,H,W]
-        base_loss: e.g. L1(reduction="none") => [B,3,H,W]
-        本函式回傳 scalar (mean weighted L1)
-        """
-        motion_mag = torch.norm(flows, dim=1, keepdim=True)  # [B,1,H,W]
-        weights = torch.tanh(motion_mag * 10.0) + 1.0         # [B,1,H,W]
-        l1map = base_loss(preds, targets)                    # [B,3,H,W]
-        weighted = (l1map * weights).mean()                   # scalar
-        return weighted
+    def motion_weighted_loss(preds, targets, flows, base_loss):
+        motion_mag = torch.norm(flows, dim=1, keepdim=True)  # shape: [B,1,H,W]
+        weights = torch.tanh(motion_mag * 10) + 1.0  # [1,2] 範圍內的權重
+        loss = base_loss(preds, targets)
+        if isinstance(loss, torch.Tensor) and loss.shape == preds.shape:
+            loss = (loss * weights).mean()
+        return loss
 
     # (E) Step 5: Training Loop
     print("[Train] Start training ...")

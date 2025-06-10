@@ -12,7 +12,7 @@ from torchvision import transforms
 from torchvision.transforms import functional as TF
 from skimage.metrics import structural_similarity as ssim_func
 from skimage.metrics import peak_signal_noise_ratio as psnr_func
-from utils.debug import debug # not nessary
+# from utils.debug import debug # not nessary
 
 # DEVICE 設定
 
@@ -21,7 +21,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # path settings
 
 TOPIC4_RELEASE_PATH = os.path.join("data", "private")
-MODEL_PATH = os.path.join("savedModel", "vfi_model.pth")
+MODEL_PATH = os.path.join("checkpoints", "interp_final.pth")
 PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
 PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
 OUTPUT_DIR = os.path.join("output", "vfi_results")
@@ -30,21 +30,21 @@ PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
 
 # ── 2. OPTICAL FLOW 求解 ───────────────────────────────────────────────────────
 
-def compute_flow(f0: np.ndarray, f1: np.ndarray) -> np.ndarray:
+def compute_flow(a, b):
+    """
+    使用 OpenCV 的 DISOpticalFlow（preset = MEDIUM）。
+    相比 Farneback，可更穩定地處理大位移，但運算稍慢。
+    """
+    g0 = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY)
+    g1 = cv2.cvtColor(b, cv2.COLOR_BGR2GRAY)
 
- 
-    gray0 = cv2.cvtColor(f0, cv2.COLOR_BGR2GRAY)
-    gray1 = cv2.cvtColor(f1, cv2.COLOR_BGR2GRAY)
-    flow = cv2.calcOpticalFlowFarneback(
-        gray0, gray1, None,
-        pyr_scale=0.5,
-        levels=3,
-        winsize=15,
-        iterations=3,
-        poly_n=5,
-        poly_sigma=1.2,
-        flags=0
-    )
+    # 建立 DISOpticalFlow 物件（可選 FAST、MEDIUM、或 ULTRA）
+    dis = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+    # 啟用空間擴散和平均正規化，能稍微改善大位移精度
+    dis.setUseSpatialPropagation(True)
+    dis.setUseMeanNormalization(True)
+
+    flow = dis.calc(g0, g1, None)
     return flow
 
 
@@ -53,7 +53,7 @@ def compute_flow(f0: np.ndarray, f1: np.ndarray) -> np.ndarray:
 class ImprovedInterpNet(nn.Module):
 
 
-    def __init__(self, in_ch: int = 20):
+    def __init__(self, in_ch: int = 26):
         super().__init__()
         # ---------------- Encoder ----------------
         self.enc1 = nn.Sequential(
@@ -242,8 +242,9 @@ def interpolate_and_evaluate_full6(
     )  # [256,448,2]
     flow_tensor = torch.from_numpy(flow_resized).permute(2, 0, 1).float()  # [2,256,448]
 
-    # Ⅲ. 組合輸入：cat 6×[3,256,448] + [2,256,448] → [20,256,448]
-    input_tensor = torch.cat(frames + [flow_tensor], dim=0).unsqueeze(0).to(device)  # [1,20,256,448]
+    temp_vals = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    t_chs = [torch.full((1, image_size[0], image_size[1]), t) for t in temp_vals]  # no device here
+    input_tensor = torch.cat(frames + [flow_tensor] + t_chs, dim=0).unsqueeze(0).to(device)  # [1,26,256,448]
 
     # Ⅳ. 讀 GT 並 bicubic 2× → [3,512,896] (若 gt_path=None，直接跳過)
     if gt_path is not None:
@@ -432,8 +433,8 @@ def run_public_testset(
 
 # 10. main function
 
-debug(f"[VFI] Loading model from: {MODEL_PATH}")
-model = load_interpolation_model(MODEL_PATH)
+# debug(f"[VFI] Loading model from: {MODEL_PATH}")
+# model = load_interpolation_model(MODEL_PATH)
 
 def predict_frame(
     input_dir: str,
@@ -465,27 +466,27 @@ def predict_frame(
     out_path = os.path.join(output_dir, "im4.png")
     save_tensor_as_png(pred_tensor, out_path)
 
-# ── 10. If run this file stand‐alone，示範推論 private & public ─────────────────────
+#── 10. If run this file stand‐alone，示範推論 private & public ─────────────────────
 
-# if __name__ == "__main__":
-#     # 調整路徑
-#     TOPIC4_RELEASE_PATH = os.path.join("data", "private")
-#     MODEL_PATH = os.path.join("savedModel", "vfi_model.pth")
-#     PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
-#     PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
-#     OUTPUT_DIR = os.path.join("output", "vfi_results")
-#     PRIVATE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "private_test_output")
-#     PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
+if __name__ == "__main__":
+    # 調整路徑
+    TOPIC4_RELEASE_PATH = os.path.join("data", "topic4_release")
+    MODEL_PATH = os.path.join("checkpoints", "interp_final.pth")
+    PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
+    PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
+    OUTPUT_DIR = os.path.join("output", "vfi_results")
+    PRIVATE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "private_test_output")
+    PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
 
-#     print("Loading model from:", MODEL_PATH)
-#     model = load_interpolation_model(MODEL_PATH)
+    print("Loading model from:", MODEL_PATH)
+    model = load_interpolation_model(MODEL_PATH)
 
-#     print("\n>>> Running PRIVATE test set inference ...")
-#     run_private_testset(model, PRIVATE_TEST_DIR, PRIVATE_OUTPUT_DIR)
+    print("\n>>> Running PRIVATE test set inference ...")
+    run_private_testset(model, PRIVATE_TEST_DIR, PRIVATE_OUTPUT_DIR)
 
-#     print("\n>>> Running PUBLIC test set inference ...")
-#     run_public_testset(model, PUBLIC_TEST_DIR, PUBLIC_OUTPUT_DIR)
+    print("\n>>> Running PUBLIC test set inference ...")
+    run_public_testset(model, PUBLIC_TEST_DIR, PUBLIC_OUTPUT_DIR)
 
-#     print("\n>>> All inference on private & public sets finished!")
+    print("\n>>> All inference on private & public sets finished!")
 
 
