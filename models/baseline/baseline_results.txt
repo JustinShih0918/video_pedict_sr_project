@@ -1,0 +1,4 @@
+--- BASELINE RESULTS (Bilinear Interpolation) ---
+Total images processed: 19489
+Average PSNR: 33.70 dB
+Average SSIM: 0.9360
