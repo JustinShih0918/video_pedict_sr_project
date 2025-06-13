@@ -12,7 +12,6 @@ from torchvision import transforms
 from torchvision.transforms import functional as TF
 from skimage.metrics import structural_similarity as ssim_func
 from skimage.metrics import peak_signal_noise_ratio as psnr_func
-from utils.debug import debug # not nessary
 
 # DEVICE 設定
 
@@ -432,7 +431,7 @@ def run_public_testset(
 
 # 10. main function
 
-debug(f"[VFI] Loading model from: {MODEL_PATH}")
+print(f"[VFI] Loading model from: {MODEL_PATH}")
 model = load_interpolation_model(MODEL_PATH)
 
 def predict_frame(
@@ -449,6 +448,8 @@ def predict_frame(
         if not os.path.exists(im_path):
             raise FileNotFoundError(f"Image not found: {im_path}")
         im_name = os.path.basename(im_path)
+        if im_name.startswith("im4"):
+            continue
         dst_path = os.path.join(output_dir, im_name)
         cv2.imwrite(dst_path, cv2.imread(im_path))
     
@@ -467,25 +468,25 @@ def predict_frame(
 
 # ── 10. If run this file stand‐alone，示範推論 private & public ─────────────────────
 
-# if __name__ == "__main__":
-#     # 調整路徑
-#     TOPIC4_RELEASE_PATH = os.path.join("data", "private")
-#     MODEL_PATH = os.path.join("savedModel", "vfi_model.pth")
-#     PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
-#     PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
-#     OUTPUT_DIR = os.path.join("output", "vfi_results")
-#     PRIVATE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "private_test_output")
-#     PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
+if __name__ == "__main__":
+    # 調整路徑
+    TOPIC4_RELEASE_PATH = os.path.join("data", "private")
+    MODEL_PATH = os.path.join("savedModel", "vfi_model.pth")
+    PRIVATE_TEST_DIR = os.path.join(TOPIC4_RELEASE_PATH, "private_test_set")
+    PUBLIC_TEST_DIR  = os.path.join(TOPIC4_RELEASE_PATH, "public_test_set")
+    OUTPUT_DIR = os.path.join("output", "vfi_results")
+    PRIVATE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "private_test_output")
+    PUBLIC_OUTPUT_DIR  = os.path.join(OUTPUT_DIR, "public_test_output")
 
-#     print("Loading model from:", MODEL_PATH)
-#     model = load_interpolation_model(MODEL_PATH)
+    print("Loading model from:", MODEL_PATH)
+    model = load_interpolation_model(MODEL_PATH)
 
-#     print("\n>>> Running PRIVATE test set inference ...")
-#     run_private_testset(model, PRIVATE_TEST_DIR, PRIVATE_OUTPUT_DIR)
+    print("\n>>> Running PRIVATE test set inference ...")
+    run_private_testset(model, PRIVATE_TEST_DIR, PRIVATE_OUTPUT_DIR)
 
-#     print("\n>>> Running PUBLIC test set inference ...")
-#     run_public_testset(model, PUBLIC_TEST_DIR, PUBLIC_OUTPUT_DIR)
+    print("\n>>> Running PUBLIC test set inference ...")
+    run_public_testset(model, PUBLIC_TEST_DIR, PUBLIC_OUTPUT_DIR)
 
-#     print("\n>>> All inference on private & public sets finished!")
+    print("\n>>> All inference on private & public sets finished!")
 
 

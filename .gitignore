@@ -5,3 +5,4 @@ data/private
 checkpoints
 logs
 __pycache__
+flatten_data
